@@ -3,3 +3,7 @@
 /.vscode
 /.vagrant
 .phpunit.result.cache
+/database/database.sqlite
+.env
+categories.json
+products.json
