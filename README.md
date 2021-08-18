@@ -23,3 +23,8 @@ Laravel Zero was created by, and is maintained by [Nuno Maduro](https://github.c
 
 ## Documentation
 required categories.json and products.json
+
+## References:
+https://blog.programster.org/php-working-with-large-json-files - research about iterating json
+https://github.com/halaxa/json-machine - library to iterate over json
+
