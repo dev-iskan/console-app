@@ -2,6 +2,7 @@
 
 namespace App\Commands;
 
+use App\Helpers\Validation;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
 use JsonMachine\JsonMachine;
@@ -21,7 +22,7 @@ class ParseProductsCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Command to parse products.json file and create or update by eId products in DB';
+    protected $description = 'Command to parse products.json file and create products in DB';
 
     /**
      * Execute the console command.
@@ -35,15 +36,50 @@ class ParseProductsCommand extends Command
 
         $time_start = microtime(true);
 
-        //get category_ids to validate input json
-
+        $categoryIds = DB::table('categories')->pluck('id')->toArray();
         $products = JsonMachine::fromFile($filename, "");
 
         $bar = $this->output->createProgressBar();
         foreach ($products as $product) {
-            // validate product
-            // check
+            if (!(isset($product['title']) && Validation::title($product['title']))) {
+                $this->comment('Title of product should exist and min 3 symbols and max 14');
+                $bar->advance();
+                continue;
+            }
+            if (isset($product['eId']) && !Validation::eId($product['eId'])) {
+                $this->comment('eId: ' . $product['eId'] . ' of product should be numeric');
+                $bar->advance();
+                continue;
+            }
+            if (!(isset($product['price']) && Validation::eId($product['price']))) {
+                $this->comment('Price of product should exist and min 0 and max 200');
+                $bar->advance();
+                continue;
+            }
+            if (!Validation::in_array_all($product['categoryIds'], $categoryIds)) {
+                $this->comment('Categories of product with given ids don\'t exist');
+                $bar->advance();
+                continue;
+            }
 
+            DB::transaction(function () use ($product) {
+                $savedProductId = DB::table('products')->insertGetId(
+                    [
+                        'title' => $product['title'],
+                        'price' => $product['price'],
+                        'eId' => $product['eId']
+                    ]
+                );
+
+                $batch = array_map(function ($category_id) use ($savedProductId) {
+                    return [
+                        'product_id' => $savedProductId,
+                        'category_id' => $category_id
+                    ];
+                }, array_unique($product['categoryIds']));
+
+                DB::table('category_product')->insert($batch);
+            });
 
             $bar->advance();
         }

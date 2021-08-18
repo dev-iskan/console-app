@@ -19,8 +19,6 @@
         "php": "^7.3|^8.0",
         "halaxa/json-machine": "^0.7.0",
         "illuminate/database": "^8.40",
-        "illuminate/translation": "^8.55",
-        "illuminate/validation": "^8.55",
         "laravel-zero/framework": "^8.8"
     },
     "require-dev": {

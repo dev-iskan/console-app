@@ -2,9 +2,9 @@
 
 namespace App\Commands;
 
+use App\Helpers\Validation;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use JsonMachine\JsonMachine;
 use LaravelZero\Framework\Commands\Command;
 
@@ -39,31 +39,36 @@ class ParseCategoriesCommand extends Command
         $categories = JsonMachine::fromFile($filename, "");
 
         $bar = $this->output->createProgressBar();
-        foreach ($categories as $category) {
-            // validate json
-            $validator = Validator::make($category, [
-                'title' => ['required', 'string', 'min:3', 'max:12'],
-                'eId' => ['nullable', 'integer', 'min:0']
-            ]);
-            if ($validator->fails()) {
-                $key = $validator->errors()->keys()[0];
-                $message = $validator->errors()->messages()[$key][0];
-                $this->comment('Failed validation on ' . $key . ': ' . $category[$key] . ' with message ' . $message);
 
+        $batch = [];
+        foreach ($categories as $category) {
+            if (!(isset($category['title']) && Validation::title($category['title']))) {
+                $this->comment('Title of category should exists and min 3 symbols and max 14');
+                $bar->advance();
+                continue;
+            }
+            if (isset($category['eId']) && !Validation::eId($category['eId'])) {
+                $this->comment('eId: ' . $category['eId'] . ' of category should be numeric');
                 $bar->advance();
                 continue;
             }
 
-            // store to db
-            DB::table('categories')->insert([
-                [
-                    'title' => $category['title'],
-                    'eId' => $category['eId']
-                ]
-            ]);
+            $batch[] = [
+                'title' => $category['title'],
+                'eId' => $category['eId']
+            ];
 
+            if (count($batch) > 20) {
+                // store in db 20 at once
+                DB::table('categories')->insert($batch);
+
+                $batch = [];
+            }
             $bar->advance();
         }
+
+        // store rest
+        DB::table('categories')->insert($batch);
 
         $time_end = microtime(true);
 
